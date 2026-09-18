@@ -1819,12 +1819,14 @@
                 boat.position.set(bX, currentWaterLevel + waveOffset * 0.5, bZ);
                 boat.rotation.set(Math.sin(time * 3 + idx) * 0.025, bRotY, Math.sin(time * 2 + idx) * 0.015);
 
-                const stroke = Math.sin(time * 6.5 + idx);
-                rowers.forEach(r => { r.rotation.x = stroke * 0.22; });
-                oars.forEach((o, oIdx) => {
-                    const sideMul = (oIdx % 2 === 0) ? -1 : 1;
-                    o.rotation.z = sideMul * (0.65 + stroke * 0.15);
-                    o.rotation.y = stroke * 0.2;
+                const stroke = Math.sin(time * 5.5 + idx * 0.4);
+                rowers.forEach(r => {
+                    // 1. Gập người về trước đẩy chèo, ngửa người ra sau kéo lực nước
+                    r.rotation.x = stroke * 0.24;
+                    // 2. Nhấc mái chèo lên khỏi mặt nước và cắm sâu xuống dòng nước
+                    const isStbd = r.name.includes('Stbd');
+                    r.rotation.y = (isStbd ? -1 : 1) * (stroke * 0.10);
+                    r.rotation.z = (isStbd ? -1 : 1) * (stroke * 0.08);
                 });
             });
 
