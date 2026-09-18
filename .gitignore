@@ -34,3 +34,7 @@ assets/characters/
 
 # Temporary audit logs
 *.log
+
+# Submodules and MCP local tools
+blender-mcp/
+
