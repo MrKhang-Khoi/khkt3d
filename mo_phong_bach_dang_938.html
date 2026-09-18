@@ -884,6 +884,20 @@
         // HỆ THỐNG VẬT LIỆU PBR LỊCH SỬ VIỆT NAM THẾ KỶ X (BẢO TOÀN BLENDER MULTI-MATS)
         // =================================================================
         function applyHistoricalPBR_DaiViet(rootObj) {
+            // Định nghĩa bảng màu PBR Thủy binh & Chiến thuyền Đại Việt chuẩn Ngô Quyền 938
+            const colLim = new THREE.Color(0x271911);      // Gỗ lim ngâm bùn sông nâu đen cổ kính
+            const colDeck = new THREE.Color(0x382417);     // Ván sàn thuyền nâu ấm
+            const colSail = new THREE.Color(0x54301d);     // Buồm cánh dơi củ nâu
+            const colMast = new THREE.Color(0x24160e);     // Cột buồm gỗ lim
+            const colNan = new THREE.Color(0x785634);      // Nan tre già
+            const colSkin = new THREE.Color(0x8a5035);     // Da thủy binh Việt cổ rám nắng bánh mật sông nước
+            const colKho = new THREE.Color(0x3e2316);      // Khố vải củ nâu dệt thô
+            const colKhan = new THREE.Color(0x1e293b);     // Khăn đầu rìu chàm thẫm
+            const colDong = new THREE.Color(0x9a6a38);     // Mũi chim lạc & Giáp hộ tâm đồng Đông Sơn
+            const colKhien = new THREE.Color(0x18181b);    // Khiên mây đan tròn sơn then đen bóng mờ
+            const colFlag = new THREE.Color(0xd97706);     // Cờ lệnh ngũ hành vàng nghệ viền lửa
+            const colBelt = new THREE.Color(0x451a03);     // Đai thắt lưng da bò nâu đỏ
+
             rootObj.traverse(child => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -893,24 +907,78 @@
                         if (!m) return;
                         const mn = (m.name || '').toLowerCase();
                         const cn = (child.name || '').toLowerCase();
-                        // Hai mặt cho vải buồm và cờ lệnh
-                        if (mn.includes('buom') || mn.includes('sail') || mn.includes('flag') || mn.includes('colenh') || cn.includes('buom') || cn.includes('colenh')) {
-                            m.side = THREE.DoubleSide;
-                        }
-                        // Hiệu ứng kim loại đồng Đông Sơn và kiếm
-                        if (mn.includes('dong') || mn.includes('bronze') || mn.includes('giap') || mn.includes('kiem') || mn.includes('blade')) {
-                            m.metalness = Math.max(m.metalness || 0, 0.75);
-                            m.roughness = Math.min(m.roughness || 1, 0.35);
-                        }
-                        // Da người Việt cổ nâu bánh mật
-                        if (mn.includes('skin') || mn.includes('danguoi') || mn.includes('vietco')) {
+
+                        // 1. Da người lính thủy binh Đại Việt
+                        if (mn.includes('skin') || mn.includes('danguoi') || cn.includes('soldier_body')) {
+                            m.color = colSkin;
                             m.roughness = 0.52;
                             m.metalness = 0.02;
                         }
-                        // Khiên mây sơn then bóng mờ
-                        if (mn.includes('khien') || mn.includes('shield') || mn.includes('sonthen')) {
-                            m.roughness = 0.38;
-                            m.metalness = 0.12;
+                        // 2. Khố vải củ nâu
+                        else if (mn.includes('kho') || mn.includes('ao') || mn.includes('cunau')) {
+                            m.color = colKho;
+                            m.roughness = 0.85;
+                            m.metalness = 0.02;
+                        }
+                        // 3. Khăn chàm / quần chiến đấu
+                        else if (mn.includes('khan') || mn.includes('cham') || mn.includes('quan')) {
+                            m.color = colKhan;
+                            m.roughness = 0.78;
+                            m.metalness = 0.02;
+                        }
+                        // 4. Giáp hộ tâm đồng Đông Sơn & Mũi chim lạc
+                        else if (mn.includes('dong') || mn.includes('bronze') || mn.includes('giap') || mn.includes('chimlac') || cn.includes('soldier_armor') || cn.includes('chimlac')) {
+                            m.color = colDong;
+                            m.metalness = 0.85;
+                            m.roughness = 0.28;
+                        }
+                        // 5. Đai thắt lưng
+                        else if (mn.includes('thatlung') || mn.includes('belt') || cn.includes('soldier_belt')) {
+                            m.color = colBelt;
+                            m.roughness = 0.65;
+                            m.metalness = 0.05;
+                        }
+                        // 6. Buồm cánh dơi củ nâu
+                        else if (mn.includes('buom') || mn.includes('sail') || cn.includes('buom')) {
+                            m.color = colSail;
+                            m.roughness = 0.82;
+                            m.side = THREE.DoubleSide;
+                        }
+                        // 7. Cờ lệnh ngũ hành
+                        else if (mn.includes('colenh') || mn.includes('flag') || cn.includes('colenh')) {
+                            m.color = colFlag;
+                            m.roughness = 0.45;
+                            m.side = THREE.DoubleSide;
+                        }
+                        // 8. Khiên mây sơn then đen
+                        else if (mn.includes('khien') || mn.includes('shield') || mn.includes('sonthen') || cn.includes('khien')) {
+                            m.color = colKhien;
+                            m.roughness = 0.35;
+                            m.metalness = 0.15;
+                        }
+                        // 9. Cột buồm & Nan tre
+                        else if (mn.includes('cot') || mn.includes('mast')) {
+                            m.color = colMast;
+                            m.roughness = 0.68;
+                        } else if (mn.includes('tre') || mn.includes('nan')) {
+                            m.color = colNan;
+                            m.roughness = 0.60;
+                        }
+                        // 10. Thân thuyền, sàn boong, khung sườn, cán chèo gỗ lim
+                        else if (mn.includes('golim') || mn.includes('hull') || mn.includes('than_thuyen') || mn.includes('san_boong') || mn.includes('khung') || mn.includes('cheo') || cn.includes('than_thuyen') || cn.includes('san_boong') || cn.includes('cheo')) {
+                            if (mn.includes('san_boong') || cn.includes('san_boong')) {
+                                m.color = colDeck;
+                                m.roughness = 0.72;
+                            } else {
+                                m.color = colLim;
+                                m.roughness = 0.65;
+                            }
+                            m.metalness = 0.05;
+                        } else {
+                            // Fallback cho thân thuyền và chi tiết gỗ
+                            m.color = colLim;
+                            m.roughness = 0.65;
+                            m.metalness = 0.05;
                         }
                     });
                 }
