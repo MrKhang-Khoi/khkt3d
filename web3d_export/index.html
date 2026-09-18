@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mô Phỏng 3D Siêu Thực: Đại Chiến Bạch Đằng 938 - Ngô Quyền</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js + OrbitControls + GLTFLoader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- Master 3D Assets (Mã hóa Base64 nhúng chạy Offline 100% không dính lỗi CORS) -->
+    <script src="ships_assets_data.js"></script>
+
+    <style>
+        :root {
+            --gold-primary: #f5d76e;
+            --gold-glow: rgba(245, 215, 110, 0.4);
+            --bg-hud: rgba(10, 15, 24, 0.94);
+            --border-hud: rgba(245, 215, 110, 0.35);
+            --water-blue: #38bdf8;
+            --danger-red: #ef4444;
+            --viet-gold: #eab308;
+            --han-crimson: #dc2626;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            background-color: #050811;
+            font-family: 'Montserrat', sans-serif;
+            color: #ffffff;
+        }
+
+        #canvas3d {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            outline: none;
+        }
+
+        /* --- HUY HIỆU TIÊU ĐỀ GỌN NHẸ (THAY THẾ TOÀN BỘ KHUNG H1 CŨ ĐỂ TỐI ƯU KHÔNG GIAN) --- */
+        #top-badge {
+            position: absolute;
+            top: 18px;
+            left: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, rgba(12, 18, 30, 0.88) 0%, rgba(6, 10, 18, 0.92) 100%);
+            border: 1px solid rgba(245, 215, 110, 0.35);
+            border-left: 3px solid var(--gold-primary);
+            border-radius: 20px;
+            padding: 7px 16px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+
+        #top-badge .battle-title {
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            font-size: 13.5px;
+            color: var(--gold-primary);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            text-shadow: 0 2px 8px rgba(245, 215, 110, 0.3);
+        }
+
+        #top-badge .divider-dot {
+            color: rgba(245, 215, 110, 0.4);
+            font-size: 11px;
+        }
+
+        #top-badge .battle-sub {
+            color: #94a3b8;
+            font-size: 11.5px;
+            font-weight: 500;
+        }
+
+        #btn-info-modal {
+            background: rgba(245, 215, 110, 0.15);
+            border: 1px solid rgba(245, 215, 110, 0.4);
+            color: var(--gold-primary);
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 4px;
+        }
+
+        #btn-info-modal:hover {
+            background: var(--gold-primary);
+            color: #0a0f18;
+            transform: scale(1.1);
+        }
+
+        /* Modal Chú giải Lịch sử & Thủy văn (Chỉ hiện khi học sinh bấm icon ?) */
+        #info-modal {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            background: linear-gradient(135deg, rgba(12, 18, 30, 0.96) 0%, rgba(6, 10, 18, 0.98) 100%);
+            border: 1px solid var(--border-hud);
+            border-radius: 12px;
+            padding: 16px 20px;
+            max-width: 380px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.9);
+            backdrop-filter: blur(16px);
+            z-index: 70;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        #info-modal.open {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .info-modal-title {
+            font-family: 'Cinzel', serif;
+            color: var(--gold-primary);
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn-close-modal {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .btn-close-modal:hover { color: #ffffff; }
+
+        .info-metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            font-size: 11.5px;
+            margin-top: 4px;
+        }
+
+        .info-metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+
+        .card-lbl { color: #64748b; font-size: 10.5px; margin-bottom: 2px; }
+        .card-val { font-weight: 700; color: #f1f5f9; }
+
+        /* --- BẢNG ĐIỀU KHIỂN CHÍNH (HUD CONTROL BAR) - 1 THANH DUY NHẤT DẠNG CAPSULE --- */
+        #hud-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 60;
+            width: auto;
+            max-width: calc(100vw - 24px);
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+
+        .hud-bar {
+            background: linear-gradient(180deg, rgba(14, 20, 32, 0.94) 0%, rgba(8, 12, 20, 0.98) 100%);
+            border: 1px solid rgba(245, 215, 110, 0.38);
+            border-radius: 40px;
+            padding: 6px 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9), 0 0 24px rgba(245, 215, 110, 0.18);
+            backdrop-filter: blur(16px);
+            position: relative;
+            max-width: 100%;
+            box-sizing: border-box;
+            pointer-events: auto;
+        }
+
+        .hud-divider {
+            width: 1px;
+            height: 24px;
+            background: rgba(245, 215, 110, 0.22);
+        }
+
+        .hud-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+        }
+
+        .hud-label {
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .ctrl-icon-btn {
+            background: #1e293b;
+            border: 1px solid rgba(245, 215, 110, 0.4);
+            color: var(--gold-primary);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .ctrl-icon-btn:hover {
+            background: var(--gold-primary);
+            color: #0a0f18;
+            transform: scale(1.1);
+        }
+
+        .hud-badge-btn {
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            color: #38bdf8;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 13px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            white-space: nowrap;
+        }
+
+        .hud-badge-btn:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+        }
+
+        .hud-badge-btn.gold {
+            border-color: rgba(245, 215, 110, 0.5);
+            color: var(--gold-primary);
+        }
+
+        .hud-badge-btn.gold:hover {
+            background: rgba(245, 215, 110, 0.2);
+            box-shadow: 0 0 12px rgba(245, 215, 110, 0.4);
+        }
+
+        .hud-badge-btn.green {
+            border-color: rgba(34, 197, 94, 0.5);
+            color: #4ade80;
+        }
+
+        .hud-badge-btn.green:hover {
+            background: rgba(34, 197, 94, 0.2);
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+        }
+
+        .hud-badge-btn.full-btn {
+            background: rgba(20, 29, 44, 0.9);
+            border: 1px solid rgba(245, 215, 110, 0.5);
+            color: #f1f5f9;
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            padding: 6px 14px;
+        }
+
+        .hud-badge-btn.full-btn:hover {
+            background: var(--gold-primary);
+            color: #0a0f18;
+            box-shadow: 0 0 16px var(--gold-glow);
+        }
+
+        /* Dropdown Menu Popup */
+        .hud-popup {
+            position: absolute;
+            bottom: calc(100% + 14px);
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: rgba(12, 18, 30, 0.97);
+            border: 1px solid var(--border-hud);
+            border-radius: 12px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 14px 40px rgba(0,0,0,0.9);
+            backdrop-filter: blur(16px);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.25s ease;
+            z-index: 120;
+            min-width: 220px;
+        }
+
+        .hud-popup.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Popup riêng cho 4 Pha chiến thuật */
+        .phase-popup {
+            min-width: 380px;
+            max-width: 90vw;
+            padding: 10px;
+        }
+
+        .popup-header-title {
+            font-family: 'Cinzel', serif;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gold-primary);
+            letter-spacing: 0.8px;
+            padding: 4px 8px 8px 8px;
+            border-bottom: 1px solid rgba(245, 215, 110, 0.2);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .opt-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            text-align: left;
+        }
+
+        .opt-title {
+            font-weight: 700;
+            font-size: 12px;
+            color: #f1f5f9;
+        }
+
+        .opt-desc {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 400;
+            line-height: 1.35;
+        }
+
+        .popup-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.08);
+            margin: 6px 0;
+        }
+
+        .timeline-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 6px 8px 4px 8px;
+        }
+
+        .timeline-label {
+            font-size: 11.5px;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: var(--gold-primary);
+            cursor: pointer;
+            height: 5px;
+        }
+
+        .popup-opt {
+            background: transparent;
+            border: none;
+            color: #cbd5e1;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: left;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .popup-opt:hover {
+            background: rgba(245, 215, 110, 0.15);
+            color: var(--gold-primary);
+        }
+
+        .popup-opt.selected {
+            background: rgba(245, 215, 110, 0.22);
+            color: var(--gold-primary);
+            border-left: 3px solid var(--gold-primary);
+        }
+
+        .popup-opt.selected .opt-title {
+            color: var(--gold-primary);
+        }
+
+        /* --- FPS & THÔNG BÁO --- */
+        #fps-badge {
+            position: absolute;
+            bottom: 16px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 11px;
+            color: #64748b;
+            z-index: 50;
+        }
+
+        #loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 15, 24, 0.92);
+            border: 1px solid var(--gold-primary);
+            padding: 16px 28px;
+            border-radius: 12px;
+            font-size: 14px;
+            color: var(--gold-primary);
+            font-weight: 700;
+            letter-spacing: 1px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.9);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+            transition: opacity 0.5s ease;
+        }
+
+        @media (max-width: 1440px) {
+            #hud-container { bottom: 18px; }
+            .hud-bar { padding: 5px 12px; gap: 6px; }
+            .hud-label { font-size: 11.5px; }
+            .hud-badge-btn { font-size: 11px; padding: 5px 9px; }
+            .ctrl-icon-btn { width: 26px; height: 26px; font-size: 12px; }
+            .hud-divider { height: 18px; margin: 0 1px; }
+        }
+
+        @media (max-width: 1250px) {
+            .hud-label { display: none; }
+            .hud-bar { gap: 6px; padding: 5px 10px; }
+        }
+
+        @media (max-width: 900px) {
+            #hud-container { bottom: 14px; }
+            .hud-bar { padding: 4px 8px; gap: 4px; }
+            .hud-badge-btn { font-size: 10.5px; padding: 4px 8px; }
+            .phase-popup { min-width: 300px; }
+            #top-badge { padding: 4px 10px; }
+            #top-badge .battle-title { font-size: 11.5px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Canvas -->
+    <canvas id="canvas3d"></canvas>
+
+    <!-- Biểu tượng loading mô hình 3D Master -->
+    <div id="loading-indicator">
+        <span>⚔️</span> ĐANG NẠP MÔ HÌNH MASTER 3D BẠCH ĐẰNG...
+    </div>
+
+    <!-- Huy hiệu tiêu đề nhỏ gọn (Tối ưu góc nhìn cho học sinh >= 95%) -->
+    <div id="top-badge">
+        <span>⚔️</span>
+        <span class="battle-title">ĐẠI CHIẾN BẠCH ĐẰNG 938</span>
+        <span class="divider-dot">•</span>
+        <span class="battle-sub">Sông Bạch Đằng (Rộng 270m)</span>
+        <button id="btn-info-modal" title="Xem chú giải lịch sử & thông số thủy văn">ℹ️</button>
+    </div>
+
+    <!-- Modal Chú giải Lịch sử & Thủy văn (Chỉ bật khi cần) -->
+    <div id="info-modal">
+        <div class="info-modal-title">
+            <span>CHIẾN THUẬT & THỦY VĂN HỌC</span>
+            <button class="btn-close-modal" id="btn-close-modal">✕</button>
+        </div>
+        <div style="font-size: 12px; color: #cbd5e1; line-height: 1.45;" id="modal-desc-stage">
+            Ngô Quyền lợi dụng quy luật thủy triều biến thiên trên sông Bạch Đằng, cho cắm bãi cọc nhọn bọc sắt và dùng thuyền nhẹ nhử hạm đội địch lọt sâu vào trận địa phục kích.
+        </div>
+        <div class="info-metric-grid">
+            <div class="info-metric-card">
+                <div class="card-lbl">MỰC NƯỚC TRIỀU</div>
+                <div class="card-val" id="modal-val-tide" style="color: var(--water-blue);">+0.85 m (Đỉnh triều)</div>
+            </div>
+            <div class="info-metric-card">
+                <div class="card-lbl">TÌNH TRẠNG BÃI CỌC</div>
+                <div class="card-val" id="modal-val-stakes" style="color: #4ade80;">Chìm sâu 0.71m (Tàng hình)</div>
+            </div>
+            <div class="info-metric-card">
+                <div class="card-lbl">HẠM ĐỘI ĐẠI VIỆT</div>
+                <div class="card-val" style="color: var(--viet-gold);">8 Thuyền nhẹ (Lườn cong)</div>
+            </div>
+            <div class="info-metric-card">
+                <div class="card-lbl">HẠM ĐỘI NAM HÁN</div>
+                <div class="card-val" id="modal-val-han" style="color: var(--han-crimson);">26 Lâu thuyền (Ngói âm dương)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BẢNG ĐIỀU KHIỂN CHÍNH (HUD CONTROL BAR - 1 THANH DUY NHẤT CHUẨN CAPSULE) -->
+    <div id="hud-container">
+        <div class="hud-bar">
+            <!-- 1. DIỄN BIẾN PHA CHIẾN THUẬT (DROPDOWN CHUẨN SGK LỊCH SỬ 7) -->
+            <div class="hud-group" id="grp-phase">
+                <button class="ctrl-icon-btn" id="btn-play-pause" title="Phát/Tạm dừng">⏸</button>
+                <span class="hud-label">🚩 DIỄN BIẾN</span>
+                <button class="hud-badge-btn gold" id="btn-phase-badge">
+                    <span id="txt-phase-badge">Pha 1: Triều Dâng</span>
+                    <span style="font-size: 10px;">▲</span>
+                </button>
+                <div class="hud-popup phase-popup" id="pop-phase">
+                    <div class="popup-header-title">4 PHA CHIẾN THUẬT BẠCH ĐẰNG 938</div>
+                    <button class="popup-opt selected" data-phase="1">
+                        <div class="opt-col">
+                            <div class="opt-title">⚔️ Pha 1: Triều Dâng Khiêu Chiến</div>
+                            <div class="opt-desc">8 thuyền nhẹ khiêu chiến Soái hạm giặc (Mực nước +0.85m, bãi cọc chìm sâu 0.71m)</div>
+                        </div>
+                    </button>
+                    <button class="popup-opt" data-phase="2">
+                        <div class="opt-col">
+                            <div class="opt-title">🔄 Pha 2: Giả Thua Rút Lui</div>
+                            <div class="opt-desc">2 thuyền tiên phong quay đầu 180°, nhử 26 chiến hạm giặc vượt qua bãi cọc ngầm</div>
+                        </div>
+                    </button>
+                    <button class="popup-opt" data-phase="3">
+                        <div class="opt-col">
+                            <div class="opt-title">💥 Pha 3: Triều Rút - Địch Mắc Cọc</div>
+                            <div class="opt-desc">Triều rút sâu (-0.90m), cọc sắt đâm toác lườn, soái hạm Hoằng Tháo bốc cháy dữ dội!</div>
+                        </div>
+                    </button>
+                    <button class="popup-opt" data-phase="4">
+                        <div class="opt-col">
+                            <div class="opt-title">🔥 Pha 4: Tổng Phản Công Toàn Tuyến</div>
+                            <div class="opt-desc">Quân ta 2 bờ Tràng Kênh tạt sườn tiêu diệt Hoằng Tháo, đại thắng Bạch Đằng</div>
+                        </div>
+                    </button>
+                    <div class="popup-divider"></div>
+                    <div class="timeline-row">
+                        <span class="timeline-label">Tua trận đánh:</span>
+                        <input type="range" id="timeline-slider" min="0" max="1" step="0.002" value="0.05" title="Kéo tiến trình trận đánh">
+                        <span id="txt-slider-val" style="font-size: 11px; color: var(--gold-primary); font-weight: 600; min-width: 32px;">5%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hud-divider"></div>
+
+            <!-- 2. THỦY TRIỀU -->
+            <div class="hud-group" id="grp-tide">
+                <span class="hud-label">🌊 THỦY TRIỀU</span>
+                <button class="hud-badge-btn" id="btn-tide-badge">
+                    <span id="txt-tide-badge">Triều Dâng Cao (+0.85m)</span>
+                    <span style="font-size: 10px;">▲</span>
+                </button>
+                <div class="hud-popup" id="pop-tide">
+                    <button class="popup-opt selected" data-tide="0.85">Triều Dâng Cao (+0.85m)</button>
+                    <button class="popup-opt" data-tide="0.20">Triều Bắt Đầu Đứng (+0.20m)</button>
+                    <button class="popup-opt" data-tide="-0.80">Triều Rút Nhanh (-0.80m)</button>
+                    <button class="popup-opt" data-tide="-2.00">Triều Rút Sâu (Lộ Cọc) (-2.0m)</button>
+                </div>
+            </div>
+
+            <div class="hud-divider"></div>
+
+            <!-- 3. GÓC NHÌN -->
+            <div class="hud-group" id="grp-cam">
+                <span class="hud-label">🎥 GÓC NHÌN</span>
+                <button class="hud-badge-btn gold" id="btn-cam-badge">
+                    <span id="txt-cam-badge">Toàn Cảnh</span>
+                    <span style="font-size: 10px;">▲</span>
+                </button>
+                <div class="hud-popup" id="pop-cam">
+                    <button class="popup-opt selected" data-cam="headon">Toàn Cảnh Chiến Trường</button>
+                    <button class="popup-opt" data-cam="stakes">Bãi Cọc Ngầm</button>
+                    <button class="popup-opt" data-cam="dv01">Cận Cảnh Thuyền Ta (DV_01)</button>
+                    <button class="popup-opt" data-cam="flagship">Soái Hạm Hoằng Tháo</button>
+                    <button class="popup-opt" data-cam="fire_closeup">💥 Cận Cảnh Cháy Tàu & Đâm Cọc (Hero Shot)</button>
+                    <button class="popup-opt" data-cam="cinematic">Điện Ảnh Truy Kích</button>
+                </div>
+            </div>
+
+            <div class="hud-divider"></div>
+
+            <!-- 4. CHIẾN TUYẾN -->
+            <div class="hud-group" id="grp-side">
+                <span class="hud-label">⚔️ CHIẾN TUYẾN</span>
+                <button class="hud-badge-btn" id="btn-side-badge">
+                    <span id="txt-side-badge">Cả Hai Phe</span>
+                    <span style="font-size: 10px;">▲</span>
+                </button>
+                <div class="hud-popup" id="pop-side">
+                    <button class="popup-opt selected" data-side="both">Cả Hai Phe</button>
+                    <button class="popup-opt" data-side="viet">Chỉ Thuyền Đại Việt (Ta)</button>
+                    <button class="popup-opt" data-side="han">Chỉ Hạm Đội Nam Hán (Địch)</button>
+                    <button class="popup-opt" data-side="xray">Bãi Cọc & Mớn Nước (X-Ray)</button>
+                </div>
+            </div>
+
+            <div class="hud-divider"></div>
+
+            <!-- 5. ÂM THANH -->
+            <div class="hud-group" id="grp-audio">
+                <span class="hud-label">🔊 ÂM THANH</span>
+                <button class="hud-badge-btn green" id="btn-audio-badge">
+                    <span id="txt-audio-badge">Bật</span>
+                    <span style="font-size: 10px;">▲</span>
+                </button>
+            </div>
+
+            <div class="hud-divider"></div>
+
+            <!-- 6. TOÀN CẢNH / RESET VIEW -->
+            <button class="hud-badge-btn full-btn" id="btn-fullscreen-view">
+                <span>👁️</span> TOÀN CẢNH
+            </button>
+        </div>
+    </div>
+
+    <div id="fps-badge">60 FPS | Three.js WebGL ACESFilmic</div>
+
+    <!-- ================================================================= -->
+    <!-- LOGIC 3D THREE.JS & MASTER GLB LOADER & SÓNG NƯỚC PBR             -->
+    <!-- ================================================================= -->
+    <script>
+        // 1. KHỞI TẠO SCENE, CAMERA, RENDERER
+        const canvas = document.getElementById('canvas3d');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x768a9c); // Bầu trời mùa đông cửa biển Bạch Đằng 938
+        scene.fog = new THREE.FogExp2(0x768a9c, 0.0018); // Sương mù lành lạnh sông nước
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 2000);
+        camera.position.set(0, 72, -150);
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.maxPolarAngle = Math.PI / 2 - 0.02;
+        controls.target.set(0, 2, 0);
+
+        // 2. CHIẾU SÁNG MÙA ĐÔNG CHIẾN TRƯỜNG BẠCH ĐẰNG 938
+        const ambientLight = new THREE.AmbientLight(0x94a6b8, 1.2);
+        scene.add(ambientLight);
+
+        const dirSun = new THREE.DirectionalLight(0xfff7e6, 2.5);
+        dirSun.position.set(120, 160, 80);
+        dirSun.castShadow = true;
+        dirSun.shadow.mapSize.width = 2048;
+        dirSun.shadow.mapSize.height = 2048;
+        dirSun.shadow.camera.near = 10;
+        dirSun.shadow.camera.far = 450;
+        dirSun.shadow.camera.left = -160;
+        dirSun.shadow.camera.right = 160;
+        dirSun.shadow.camera.top = 160;
+        dirSun.shadow.camera.bottom = -160;
+        scene.add(dirSun);
+
+        const hemiLight = new THREE.HemisphereLight(0x889bb0, 0x24352b, 0.8);
+        scene.add(hemiLight);
+
+        // 3. ĐỊA HÌNH DÃY NÚI ĐÁ VÔI KARST TRÀNG KÊNH & QUẢNG YÊN (RỘNG 270m)
+        function createKarstBank(sideX, isWest) {
+            const geom = new THREE.PlaneGeometry(120, 700, 48, 120);
+            const pos = geom.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                const x = pos.getX(i);
+                const y = pos.getY(i);
+                const edgeDist = (x + 60) / 120;
+                const slope = isWest ? (1.0 - edgeDist) : edgeDist;
+                const n = Math.sin(x * 0.15) * Math.cos(y * 0.08) * 8.0 + Math.sin(y * 0.25) * 4.0;
+                pos.setZ(i, Math.max(0, slope * 48.0 + n));
+            }
+            geom.computeVertexNormals();
+
+            const mat = new THREE.MeshStandardMaterial({
+                color: isWest ? 0x27332b : 0x222e26,
+                roughness: 0.88,
+                metalness: 0.1
+            });
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(sideX, 0, 0);
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        const mountainWest = createKarstBank(-155, true);
+        const mountainEast = createKarstBank(155, false);
+        scene.add(mountainWest);
+        scene.add(mountainEast);
+
+        // 4. MẶT NƯỚC SÔNG BẠCH ĐẰNG (PBR CHÂN THỰC & SÓNG VẬT LÝ)
+        let currentWaterLevel = 0.85;
+        let targetWaterLevel = 0.85;
+
+        const waterGeom = new THREE.PlaneGeometry(320, 800, 64, 64);
+        const waterMat = new THREE.MeshPhysicalMaterial({
+            color: 0x163028, // Xanh rêu lục sẫm phù sa cửa sông Bạch Đằng
+            transmission: 0.35, // Độ đục phù sa cửa biển
+            opacity: 0.94,
+            transparent: true,
+            roughness: 0.12,
+            metalness: 0.20,
+            reflectivity: 0.85,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.12
+        });
+        const waterMesh = new THREE.Mesh(waterGeom, waterMat);
+        waterMesh.rotation.x = -Math.PI / 2;
+        waterMesh.position.set(0, currentWaterLevel, 0);
+        waterMesh.receiveShadow = true;
+        scene.add(waterMesh);
+
+        // 5. TRẬN ĐỊA BÃI CỌC BẠCH ĐẰNG (HƠN 110 CỌC GỖ LIM BỌC SẮT)
+        const stakesGroup = new THREE.Group();
+        scene.add(stakesGroup);
+
+        const limWoodMat = new THREE.MeshStandardMaterial({ color: 0x2b1e15, roughness: 0.82 });
+        const ironTipMat = new THREE.MeshStandardMaterial({ color: 0x52525b, roughness: 0.4, metalness: 0.88 });
+
+        const stakeTrunkGeom = new THREE.CylinderGeometry(0.24, 0.32, 4.2, 8);
+        const stakeTipGeom = new THREE.ConeGeometry(0.25, 1.1, 8);
+        stakeTipGeom.translate(0, 2.65, 0);
+
+        const singleStakeObj = new THREE.Group();
+        const trunkMesh = new THREE.Mesh(stakeTrunkGeom, limWoodMat);
+        const tipMesh = new THREE.Mesh(stakeTipGeom, ironTipMat);
+        singleStakeObj.add(trunkMesh);
+        singleStakeObj.add(tipMesh);
+
+        const STAKE_COUNT = 110;
+        for (let i = 0; i < STAKE_COUNT; i++) {
+            const stake = singleStakeObj.clone();
+            const sx = (Math.random() - 0.5) * 190;
+            const sy = (Math.random() - 0.5) * 60;
+            const sz = -1.4 + Math.random() * 0.3;
+            const slantX = (Math.random() - 0.5) * 0.12;
+            const slantY = -0.75 - Math.random() * 0.25;
+
+            stake.position.set(sx, sz, sy);
+            stake.rotation.set(slantY, slantX, 0);
+            stake.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+            stakesGroup.add(stake);
+        }
+
+        // =================================================================
+        // 6. NẠP MÔ HÌNH MASTER 3D TỪ BLENDER (BASE64 GLTF LOADER)
+        // =================================================================
+        function base64ToArrayBuffer(b64) {
+            const bin = window.atob(b64);
+            const len = bin.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        function normalizeShipModel(rawScene, isDaiViet = true) {
+            const box = new THREE.Box3().setFromObject(rawScene);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            
+            // Căn chỉnh tâm về trục X=0, Z=0 theo mặt phẳng ngang
+            rawScene.position.x = -center.x;
+            rawScene.position.z = -center.z;
+            if (isDaiViet) {
+                // Mớn nước chuẩn thuyền Đại Việt: Thân tàu chìm tự nhiên 22cm dưới mặt nước
+                rawScene.position.y = -0.22;
+            } else {
+                // Mớn nước lâu thuyền Nam Hán: Chìm 60cm cho thân tàu đồ sộ
+                rawScene.position.y = -box.min.y - 0.60;
+            }
+
+            const wrapper = new THREE.Group();
+            wrapper.add(rawScene);
+            return wrapper;
+        }
+
+        let masterDaiVietScene = null;
+        let masterNamHanScene = null;
+
+        const daiVietFleet = [];
+        const namHanFleet = [];
+        window.daiVietFleet = daiVietFleet;
+        window.namHanFleet = namHanFleet;
+        window.stakesGroup = stakesGroup;
+
+        const dvFleetData = [
+            { name: 'DV_01_TienPhong', x: -9.0, z: -32.0, isLead: true },
+            { name: 'DV_02_TienPhong', x: +9.0, z: -32.0, isLead: true },
+            { name: 'DV_Ta_01', x: -28.0, z: -48.0, isLead: false },
+            { name: 'DV_Ta_02', x: -48.0, z: -64.0, isLead: false },
+            { name: 'DV_Ta_03', x: -68.0, z: -80.0, isLead: false },
+            { name: 'DV_Huu_01', x: +28.0, z: -48.0, isLead: false },
+            { name: 'DV_Huu_02', x: +48.0, z: -64.0, isLead: false },
+            { name: 'DV_Huu_03', x: +68.0, z: -80.0, isLead: false }
+        ];
+
+        const nhFleetData = [
+            // Đợt 1: Tiên phong 8 tàu
+            { name: 'NH_W1_01', x: -75, z: 36 }, { name: 'NH_W1_02', x: -54, z: 30 },
+            { name: 'NH_W1_03', x: -32, z: 26 }, { name: 'NH_W1_04', x: -11, z: 24 },
+            { name: 'NH_W1_05', x: +11, z: 24 }, { name: 'NH_W1_06', x: +32, z: 26 },
+            { name: 'NH_W1_07', x: +54, z: 30 }, { name: 'NH_W1_08', x: +75, z: 36 },
+
+            // Đợt 2: Trung quân 9 tàu có Soái hạm
+            { name: 'NH_W2_01', x: -85, z: 74 }, { name: 'NH_W2_02', x: -60, z: 64 },
+            { name: 'NH_W2_03', x: -30, z: 60 },
+            { name: 'NH_SoaiHam_HoangThao', x: 0, z: 56, isFlagship: true },
+            { name: 'NH_W2_05', x: +30, z: 60 }, { name: 'NH_W2_06', x: +60, z: 64 },
+            { name: 'NH_W2_07', x: +85, z: 74 }, { name: 'NH_W2_08', x: -45, z: 82 },
+            { name: 'NH_W2_09', x: +45, z: 82 },
+
+            // Đợt 3: Hậu quân 9 tàu
+            { name: 'NH_W3_01', x: -72, z: 110 }, { name: 'NH_W3_02', x: -36, z: 105 },
+            { name: 'NH_W3_03', x: 0, z: 102 }, { name: 'NH_W3_04', x: +36, z: 105 },
+            { name: 'NH_W3_05', x: +72, z: 110 }, { name: 'NH_W3_06', x: -54, z: 130 },
+            { name: 'NH_W3_07', x: +20, z: 126 }, { name: 'NH_W3_08', x: -24, z: 146 },
+            { name: 'NH_W3_09', x: +50, z: 142 }
+        ];
+
+        // =================================================================
+        // HỆ THỐNG VẬT LIỆU PBR LỊCH SỬ VIỆT NAM THẾ KỶ X (BẢO TOÀN BLENDER MULTI-MATS)
+        // =================================================================
+        function applyHistoricalPBR_DaiViet(rootObj) {
+            rootObj.traverse(child => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    const mats = Array.isArray(child.material) ? child.material : [child.material];
+                    mats.forEach(m => {
+                        if (!m) return;
+                        const mn = (m.name || '').toLowerCase();
+                        const cn = (child.name || '').toLowerCase();
+                        // Hai mặt cho vải buồm và cờ lệnh
+                        if (mn.includes('buom') || mn.includes('sail') || mn.includes('flag') || mn.includes('colenh') || cn.includes('buom') || cn.includes('colenh')) {
+                            m.side = THREE.DoubleSide;
+                        }
+                        // Hiệu ứng kim loại đồng Đông Sơn và kiếm
+                        if (mn.includes('dong') || mn.includes('bronze') || mn.includes('giap') || mn.includes('kiem') || mn.includes('blade')) {
+                            m.metalness = Math.max(m.metalness || 0, 0.75);
+                            m.roughness = Math.min(m.roughness || 1, 0.35);
+                        }
+                        // Da người Việt cổ nâu bánh mật
+                        if (mn.includes('skin') || mn.includes('danguoi') || mn.includes('vietco')) {
+                            m.roughness = 0.52;
+                            m.metalness = 0.02;
+                        }
+                        // Khiên mây sơn then bóng mờ
+                        if (mn.includes('khien') || mn.includes('shield') || mn.includes('sonthen')) {
+                            m.roughness = 0.38;
+                            m.metalness = 0.12;
+                        }
+                    });
+                }
+            });
+        }
+
+        function applyHistoricalPBR_NamHan(rootObj) {
+            // Danh mục vật liệu PBR lâu thuyền Nam Hán
+            const matHanHull = new THREE.MeshStandardMaterial({
+                color: 0x2e1e15, // Gỗ đào/sồi nâu sẫm phong hóa biển mặn
+                roughness: 0.62,
+                metalness: 0.05
+            });
+            const matHanDeck = new THREE.MeshStandardMaterial({
+                color: 0x403024, // Sàn boong gỗ thông xám
+                roughness: 0.72,
+                metalness: 0.05
+            });
+            const matHanStrakes = new THREE.MeshStandardMaterial({
+                color: 0x20140e, // Gờ nẹp ván mạn nâu đen
+                roughness: 0.65,
+                metalness: 0.05
+            });
+            const matRoofTile = new THREE.MeshStandardMaterial({
+                color: 0x242429, // Ngói âm dương 3D xám tro cổ truyền nung lò than
+                roughness: 0.78,
+                metalness: 0.05
+            });
+            const matFramework = new THREE.MeshStandardMaterial({
+                color: 0x6e1e16, // Vì kèo lầu thuyền gỗ sơn son sẫm cổ kính
+                roughness: 0.5,
+                metalness: 0.1
+            });
+            const matHanSail = new THREE.MeshStandardMaterial({
+                color: 0x8c7356, // Buồm nan tre thô hoàng dệt chiếu phơi sương gió
+                roughness: 0.7,
+                metalness: 0.02,
+                side: THREE.DoubleSide
+            });
+            const matHanMast = new THREE.MeshStandardMaterial({
+                color: 0x362519, // Cột buồm gỗ thông lớn
+                roughness: 0.65,
+                metalness: 0.05
+            });
+            const matHanOar = new THREE.MeshStandardMaterial({
+                color: 0x38261a, // 24 Mái chèo hạng nặng gỗ sồi sẫm ướt nước
+                roughness: 0.58,
+                metalness: 0.05
+            });
+            const matHanShield = new THREE.MeshStandardMaterial({
+                color: 0x2d211a, // Khiên da trâu đen viền đồng
+                roughness: 0.6,
+                metalness: 0.2
+            });
+            const matChuangNu = new THREE.MeshStandardMaterial({
+                color: 0x1e2226, // Sàng nỏ sắt rèn đen
+                roughness: 0.35,
+                metalness: 0.85
+            });
+            const matHanFlag = new THREE.MeshStandardMaterial({
+                color: 0x991b1b, // Cờ Soái đại kỳ thêu chữ Hán
+                roughness: 0.45,
+                side: THREE.DoubleSide
+            });
+            const matHanSoldier = new THREE.MeshStandardMaterial({
+                color: 0x334155, // Giáp sắt quân lính Nam Hán
+                roughness: 0.32,
+                metalness: 0.75
+            });
+
+            rootObj.traverse(child => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    const n = child.name.toLowerCase();
+                    if (n.includes('hull')) {
+                        child.material = matHanHull;
+                    } else if (n.includes('deck')) {
+                        child.material = matHanDeck;
+                    } else if (n.includes('strake') || n.includes('nep')) {
+                        child.material = matHanStrakes;
+                    } else if (n.includes('roof') || n.includes('ngoi')) {
+                        child.material = matRoofTile;
+                    } else if (n.includes('timber') || n.includes('vikeo') || n.includes('cuasong') || n.includes('son') || n.includes('lau')) {
+                        child.material = matFramework;
+                    } else if (n.includes('buom')) {
+                        child.material = matHanSail;
+                    } else if (n.includes('cot') || n.includes('mast')) {
+                        child.material = matHanMast;
+                    } else if (n.includes('oar') || n.includes('cheo')) {
+                        child.material = matHanOar;
+                    } else if (n.includes('shield') || n.includes('khien')) {
+                        child.material = matHanShield;
+                    } else if (n.includes('chuangnu') || n.includes('sangno')) {
+                        child.material = matChuangNu;
+                    } else if (n.includes('flag') || n.includes('co')) {
+                        child.material = matHanFlag;
+                    } else if (n.includes('soldier') || n.includes('guard') || n.includes('linh')) {
+                        child.material = matHanSoldier;
+                    } else {
+                        child.material = matHanHull;
+                    }
+                }
+            });
+        }
+
+        const gltfLoader = new THREE.GLTFLoader();
+
+        function buildDaiVietFleet() {
+            dvFleetData.forEach((d) => {
+                const boatRoot = new THREE.Group();
+                boatRoot.name = d.name;
+                const model = normalizeShipModel(masterDaiVietScene.clone(true), true);
+                applyHistoricalPBR_DaiViet(model);
+
+                // Thu thập mái chèo và người chèo để hoạt họa
+                const oars = [];
+                const rowers = [];
+                model.traverse(c => {
+                    if (c.name && (c.name.includes('Cheo') || c.name.includes('Oar') || c.name.includes('MaiCheo'))) oars.push(c);
+                    if (c.name && c.name.includes('Rower')) rowers.push(c);
+                });
+
+                boatRoot.userData.oars = oars;
+                boatRoot.userData.rowers = rowers;
+                boatRoot.userData.baseX = d.x;
+                boatRoot.userData.baseZ = d.z;
+                boatRoot.userData.isLead = d.isLead;
+
+                boatRoot.position.set(d.x, 0.85, d.z);
+                boatRoot.add(model);
+                scene.add(boatRoot);
+                daiVietFleet.push(boatRoot);
+            });
+        }
+
+        function buildNamHanFleet() {
+            nhFleetData.forEach((d) => {
+                const shipRoot = new THREE.Group();
+                shipRoot.name = d.name;
+                const model = normalizeShipModel(masterNamHanScene.clone(true), false);
+                applyHistoricalPBR_NamHan(model);
+
+                if (d.isFlagship) {
+                    model.scale.set(1.4, 1.4, 1.4);
+                } else {
+                    model.scale.set(0.95, 0.95, 0.95);
+                }
+
+                const oars = [];
+                model.traverse(c => {
+                    if (c.name && (c.name.includes('MaiCheo') || c.name.includes('HeavyOars'))) oars.push(c);
+                });
+
+                shipRoot.userData.oars = oars;
+                shipRoot.userData.baseX = d.x;
+                shipRoot.userData.baseZ = d.z;
+                shipRoot.userData.isFlagship = d.isFlagship || false;
+
+                shipRoot.position.set(d.x, 0.85, d.z);
+                shipRoot.add(model);
+                scene.add(shipRoot);
+                namHanFleet.push(shipRoot);
+            });
+        }
+
+        function loadAllMasterModels() {
+            let loadedCount = 0;
+            const indicator = document.getElementById('loading-indicator');
+
+            function checkAllDone() {
+                loadedCount++;
+                if (loadedCount === 2) {
+                    buildDaiVietFleet();
+                    buildNamHanFleet();
+                    if (indicator) {
+                        indicator.style.opacity = '0';
+                        setTimeout(() => indicator.remove(), 500);
+                    }
+                    console.log("=== [MASTER 3D LOADED] Đã nạp thành công 100% mô hình Master PBR từ Blender! ===");
+                }
+            }
+
+            // Nạp Thuyền Đại Việt Master
+            if (window.ASSETS_DAIVIET_B64) {
+                const dvBuffer = base64ToArrayBuffer(window.ASSETS_DAIVIET_B64);
+                gltfLoader.parse(dvBuffer, '', (gltf) => {
+                    masterDaiVietScene = gltf.scene;
+                    applyHistoricalPBR_DaiViet(masterDaiVietScene);
+                    checkAllDone();
+                }, (err) => console.error("Lỗi nạp Thuyền Đại Việt GLTF:", err));
+            }
+
+            // Nạp Lâu Thuyền Nam Hán Master
+            if (window.ASSETS_NAMHAN_B64) {
+                const nhBuffer = base64ToArrayBuffer(window.ASSETS_NAMHAN_B64);
+                gltfLoader.parse(nhBuffer, '', (gltf) => {
+                    masterNamHanScene = gltf.scene;
+                    applyHistoricalPBR_NamHan(masterNamHanScene);
+                    checkAllDone();
+                }, (err) => console.error("Lỗi nạp Lâu Thuyền Nam Hán GLTF:", err));
+            }
+        }
+
+        loadAllMasterModels();
+
+        // 7. ĐỘNG CƠ ÂM THANH PROCEDURAL (WEB AUDIO API - ZERO CORS)
+        let audioCtx = null;
+        let isAudioPlaying = false;
+        let waveGain = null;
+        let drumInterval = null;
+
+        function initAudioEngine() {
+            if (audioCtx) return;
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const bufferSize = audioCtx.sampleRate * 2;
+                const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.035;
+                    b6 = white * 0.115926;
+                }
+
+                const noiseSrc = audioCtx.createBufferSource();
+                noiseSrc.buffer = noiseBuffer;
+                noiseSrc.loop = true;
+
+                const waveFilter = audioCtx.createBiquadFilter();
+                waveFilter.type = 'lowpass';
+                waveFilter.frequency.value = 450;
+
+                waveGain = audioCtx.createGain();
+                waveGain.gain.value = 0.45;
+
+                noiseSrc.connect(waveFilter);
+                waveFilter.connect(waveGain);
+                waveGain.connect(audioCtx.destination);
+                noiseSrc.start();
+
+                drumInterval = setInterval(() => {
+                    if (!isAudioPlaying || !audioCtx) return;
+                    playDrumBeat();
+                }, 650);
+
+            } catch (e) {
+                console.warn("Web Audio API not supported", e);
+            }
+        }
+
+        function playDrumBeat() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(85, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(32, audioCtx.currentTime + 0.18);
+            gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.26);
+        }
+
+        // 8. ĐỘNG HỌC MÔ PHỎNG 4 PHA CHIẾN THUẬT & DROPDOWN TÍCH HỢP
+        let simProgress = 0.05;
+        let isSimPlaying = true;
+
+        const txtPhaseBadge = document.getElementById('txt-phase-badge');
+        const popPhase = document.getElementById('pop-phase');
+        const timelineSlider = document.getElementById('timeline-slider');
+        const txtSliderVal = document.getElementById('txt-slider-val');
+
+        const modalDescStage = document.getElementById('modal-desc-stage');
+        const modalValTide = document.getElementById('modal-val-tide');
+        const modalValStakes = document.getElementById('modal-val-stakes');
+        const modalValHan = document.getElementById('modal-val-han');
+
+        const phaseNames = {
+            1: "Pha 1: Triều Dâng",
+            2: "Pha 2: Giả Thua",
+            3: "Pha 3: Địch Mắc Cọc",
+            4: "Pha 4: Phản Công"
+        };
+
+        function setBattlePhase(phaseNum, updateSlider = true) {
+            popPhase.querySelectorAll('.popup-opt').forEach(o => o.classList.remove('selected'));
+            const activeOpt = popPhase.querySelector(`.popup-opt[data-phase="${phaseNum}"]`);
+            if (activeOpt) activeOpt.classList.add('selected');
+
+            txtPhaseBadge.innerText = phaseNames[phaseNum];
+
+            if (phaseNum === 1) {
+                if (updateSlider) simProgress = 0.08;
+                targetWaterLevel = 0.85;
+                if (modalDescStage) modalDescStage.innerText = "8 thuyền nhẹ Đại Việt khiêu chiến Soái hạm giặc. Bãi cọc chìm sâu 0.71m dưới nước.";
+                if (modalValTide) { modalValTide.innerText = "+0.85 m (Đỉnh triều)"; modalValTide.style.color = "var(--water-blue)"; }
+                if (modalValStakes) { modalValStakes.innerText = "Chìm sâu 0.71m (Tàng hình)"; modalValStakes.style.color = "#4ade80"; }
+                if (modalValHan) { modalValHan.innerText = "26 Chiến hạm (Lướt an toàn)"; modalValHan.style.color = "var(--han-crimson)"; }
+            } else if (phaseNum === 2) {
+                if (updateSlider) simProgress = 0.35;
+                targetWaterLevel = 0.40;
+                if (modalDescStage) modalDescStage.innerText = "2 thuyền tiêu binh quay đầu 180° tháo chạy. Lưu Hoằng Tháo dốc 26 chiến hạm tràn qua đỉnh bãi cọc.";
+                if (modalValTide) { modalValTide.innerText = "+0.40 m (Bắt đầu đứng)"; modalValTide.style.color = "var(--water-blue)"; }
+                if (modalValStakes) { modalValStakes.innerText = "Cách lườn tàu 0.35m"; modalValStakes.style.color = "#fbbf24"; }
+                if (modalValHan) { modalValHan.innerText = "Đang dốc lực vượt bãi cọc"; modalValHan.style.color = "var(--han-crimson)"; }
+            } else if (phaseNum === 3) {
+                if (updateSlider) simProgress = 0.65;
+                targetWaterLevel = -0.90;
+                if (modalDescStage) modalDescStage.innerText = "Nước rút kiệt làm trơ đầu cọc nhọn bọc sắt. Tàu to cồng kềnh của giặc đâm toác lườn tàu, vỡ mạn nghiêng ngả, mắc kẹt!";
+                if (modalValTide) { modalValTide.innerText = "-0.90 m (Rút sâu)"; modalValTide.style.color = "var(--danger-red)"; }
+                if (modalValStakes) { modalValStakes.innerText = "Nhô cao 1.05m đâm toác lườn"; modalValStakes.style.color = "var(--danger-red)"; }
+                if (modalValHan) { modalValHan.innerText = "Mắc cạn, đắm chìm, vỡ trận!"; modalValHan.style.color = "var(--danger-red)"; }
+            } else if (phaseNum === 4) {
+                if (updateSlider) simProgress = 0.95;
+                targetWaterLevel = -1.85;
+                if (modalDescStage) modalDescStage.innerText = "Quân ta từ hai bờ Tràng Kênh và Quảng Yên nhất tề đổ ra đánh tạt sườn. Hoằng Tháo đền tội, Đại thắng Bạch Đằng!";
+                if (modalValTide) { modalValTide.innerText = "-1.85 m (Triều kiệt)"; modalValTide.style.color = "var(--danger-red)"; }
+                if (modalValStakes) { modalValStakes.innerText = "Trơ trọn bãi cọc lịch sử"; modalValStakes.style.color = "var(--gold-primary)"; }
+                if (modalValHan) { modalValHan.innerText = "Tan vỡ hoàn toàn, Hoằng Tháo đền tội"; modalValHan.style.color = "var(--gold-primary)"; }
+            }
+
+            if (updateSlider && timelineSlider) {
+                timelineSlider.value = simProgress;
+                txtSliderVal.innerText = Math.round(simProgress * 100) + '%';
+            }
+        }
+
+        popPhase.querySelectorAll('.popup-opt').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const ph = parseInt(btn.dataset.phase);
+                setBattlePhase(ph, true);
+                popPhase.classList.remove('open');
+            };
+        });
+
+        timelineSlider.oninput = (e) => {
+            e.stopPropagation();
+            simProgress = parseFloat(timelineSlider.value);
+            txtSliderVal.innerText = Math.round(simProgress * 100) + '%';
+            if (simProgress < 0.25) setBattlePhase(1, false);
+            else if (simProgress < 0.50) setBattlePhase(2, false);
+            else if (simProgress < 0.78) setBattlePhase(3, false);
+            else setBattlePhase(4, false);
+        };
+
+        const btnPlay = document.getElementById('btn-play-pause');
+        btnPlay.onclick = (e) => {
+            e.stopPropagation();
+            isSimPlaying = !isSimPlaying;
+            btnPlay.innerText = isSimPlaying ? "⏸" : "▶";
+        };
+
+        // 9. XỬ LÝ DROPDOWNS & TƯƠNG TÁC CHUẨN CAPSULE HUD
+        function setupDropdown(grpId, badgeBtnId, badgeTxtId, popupId, onSelect) {
+            const badgeBtn = document.getElementById(badgeBtnId);
+            const badgeTxt = document.getElementById(badgeTxtId);
+            const popup = document.getElementById(popupId);
+
+            badgeBtn.onclick = (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.hud-popup').forEach(p => { if (p !== popup) p.classList.remove('open'); });
+                popup.classList.toggle('open');
+            };
+
+            popup.querySelectorAll('.popup-opt').forEach(opt => {
+                opt.onclick = (e) => {
+                    e.stopPropagation();
+                    popup.querySelectorAll('.popup-opt').forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    if (badgeTxt && opt.innerText) badgeTxt.innerText = opt.innerText.split('\n')[0].trim();
+                    popup.classList.remove('open');
+                    if (onSelect) onSelect(opt);
+                };
+            });
+        }
+
+        // Bấm ngoài đóng toàn bộ popup
+        window.addEventListener('click', () => {
+            document.querySelectorAll('.hud-popup').forEach(p => p.classList.remove('open'));
+        });
+
+        // 1. Dropdown Pha Chiến Thuật
+        const btnPhaseBadge = document.getElementById('btn-phase-badge');
+        btnPhaseBadge.onclick = (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.hud-popup').forEach(p => { if (p !== popPhase) p.classList.remove('open'); });
+            popPhase.classList.toggle('open');
+        };
+
+        // 2. Thủy Triều Dropdown
+        setupDropdown('grp-tide', 'btn-tide-badge', 'txt-tide-badge', 'pop-tide', (opt) => {
+            const tideH = parseFloat(opt.dataset.tide);
+            targetWaterLevel = tideH;
+            if (modalValTide) modalValTide.innerText = (tideH >= 0 ? '+' : '') + tideH.toFixed(2) + ' m';
+        });
+
+        // 3. Góc Nhìn Camera Dropdown
+        const camTargets = {
+            headon: { pos: new THREE.Vector3(0, 72, -150), look: new THREE.Vector3(0, 2, 0) },
+            stakes: { pos: new THREE.Vector3(14, 5, 10), look: new THREE.Vector3(0, 0.5, 0) },
+            dv01: { pos: new THREE.Vector3(-14, 4.5, -42), look: new THREE.Vector3(-9, 1.2, -32) },
+            flagship: { pos: new THREE.Vector3(0, 16, 42), look: new THREE.Vector3(0, 4, 56) },
+            fire_closeup: { pos: new THREE.Vector3(-22, 10.5, 6), look: new THREE.Vector3(0, 5.5, -4) },
+            cinematic: { pos: new THREE.Vector3(-7.5, 3.2, -72), look: new THREE.Vector3(-7.5, 2.5, -30) }
+        };
+
+        let currentCamTarget = camTargets.headon;
+
+        setupDropdown('grp-cam', 'btn-cam-badge', 'txt-cam-badge', 'pop-cam', (opt) => {
+            const key = opt.dataset.cam;
+            if (camTargets[key]) {
+                currentCamTarget = camTargets[key];
+                camera.position.copy(currentCamTarget.pos);
+                controls.target.copy(currentCamTarget.look);
+                controls.update();
+            }
+        });
+
+        // 4. Chiến Tuyến Dropdown
+        setupDropdown('grp-side', 'btn-side-badge', 'txt-side-badge', 'pop-side', (opt) => {
+            const mode = opt.dataset.side;
+            if (mode === 'both') {
+                daiVietFleet.forEach(b => b.visible = true);
+                namHanFleet.forEach(s => s.visible = true);
+                stakesGroup.visible = true;
+                waterMesh.material.opacity = 0.88;
+            } else if (mode === 'viet') {
+                daiVietFleet.forEach(b => b.visible = true);
+                namHanFleet.forEach(s => s.visible = false);
+                stakesGroup.visible = true;
+            } else if (mode === 'han') {
+                daiVietFleet.forEach(b => b.visible = false);
+                namHanFleet.forEach(s => s.visible = true);
+                stakesGroup.visible = true;
+            } else if (mode === 'xray') {
+                daiVietFleet.forEach(b => b.visible = true);
+                namHanFleet.forEach(s => s.visible = true);
+                stakesGroup.visible = true;
+                waterMesh.material.opacity = 0.35;
+            }
+        });
+
+        // 5. Âm Thanh Toggle
+        const btnAudio = document.getElementById('btn-audio-badge');
+        const txtAudio = document.getElementById('txt-audio-badge');
+        btnAudio.onclick = (e) => {
+            e.stopPropagation();
+            initAudioEngine();
+            if (audioCtx) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                isAudioPlaying = !isAudioPlaying;
+                txtAudio.innerText = isAudioPlaying ? "Bật" : "Tắt";
+                btnAudio.classList.toggle('green', isAudioPlaying);
+                if (waveGain) waveGain.gain.setValueAtTime(isAudioPlaying ? 0.45 : 0.0001, audioCtx.currentTime);
+            }
+        };
+
+        // 6. Toàn Cảnh / Fullscreen Toggle
+        const btnFullscreen = document.getElementById('btn-fullscreen-view');
+        btnFullscreen.onclick = (e) => {
+            e.stopPropagation();
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {});
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+            currentCamTarget = camTargets.headon;
+            camera.position.copy(currentCamTarget.pos);
+            controls.target.copy(currentCamTarget.look);
+            controls.update();
+        };
+
+        // Modal thông tin toggle
+        const btnInfoModal = document.getElementById('btn-info-modal');
+        const infoModal = document.getElementById('info-modal');
+        const btnCloseModal = document.getElementById('btn-close-modal');
+
+        btnInfoModal.onclick = (e) => {
+            e.stopPropagation();
+            infoModal.classList.toggle('open');
+        };
+        btnCloseModal.onclick = (e) => {
+            e.stopPropagation();
+            infoModal.classList.remove('open');
+        };
+
+        // 10. VÒNG LẶP RENDER HOẠT HỌA 60 FPS
+        
+        // =================================================================
+        // HỆ THỐNG KHÓI LỬA WEBGL SIÊU THỰC (GPU PARTICLE ENGINE - BẠCH ĐẰNG 938)
+        // Chuẩn công nghiệp: Soft Alpha Radial Textures, Zero CORS, 60 FPS
+        // =================================================================
+        function createParticlePuffTexture(type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            const cx = 64, cy = 64;
+
+            if (type === 'smoke') {
+                // Khói muội than đen đặc, viền mờ mềm mại (Soft Radial Gradient)
+                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 60);
+                grad.addColorStop(0.0, 'rgba(18, 20, 24, 0.96)');
+                grad.addColorStop(0.35, 'rgba(30, 32, 38, 0.80)');
+                grad.addColorStop(0.65, 'rgba(42, 45, 52, 0.40)');
+                grad.addColorStop(0.85, 'rgba(38, 40, 46, 0.15)');
+                grad.addColorStop(1.0, 'rgba(30, 32, 36, 0.0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 60, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (type === 'fire') {
+                // Hạt lửa sáng rực PBR: Tâm trắng nóng -> Cam lửa -> Đỏ rực -> Mờ dần
+                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 58);
+                grad.addColorStop(0.0, 'rgba(255, 235, 160, 0.95)');
+                grad.addColorStop(0.25, 'rgba(255, 140, 10, 0.85)');
+                grad.addColorStop(0.55, 'rgba(220, 45, 5, 0.60)');
+                grad.addColorStop(0.80, 'rgba(160, 20, 0, 0.25)');
+                grad.addColorStop(1.0, 'rgba(80, 5, 0, 0.0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 58, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (type === 'ember') {
+                // Đốm tàn tro than hồng lấp lánh
+                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 45);
+                grad.addColorStop(0.0, 'rgba(255, 245, 200, 1.0)');
+                grad.addColorStop(0.35, 'rgba(255, 140, 20, 0.90)');
+                grad.addColorStop(0.75, 'rgba(255, 60, 0, 0.35)');
+                grad.addColorStop(1.0, 'rgba(255, 30, 0, 0.0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 45, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.needsUpdate = true;
+            return tex;
+        }
+
+        const smokeTex = createParticlePuffTexture('smoke');
+        const fireTex = createParticlePuffTexture('fire');
+        const emberTex = createParticlePuffTexture('ember');
+
+        class Web3DPyroEngine {
+            constructor(scene) {
+                this.scene = scene;
+                this.smokeCount = 650;
+                this.fireCount = 450;
+                this.emberCount = 200;
+
+                // 1. Hệ thống hạt khói đen muội than
+                this.smokeGeom = new THREE.BufferGeometry();
+                this.smokePos = new Float32Array(this.smokeCount * 3);
+                this.smokeVel = [];
+                this.smokeLife = new Float32Array(this.smokeCount);
+                this.smokeMaxLife = new Float32Array(this.smokeCount);
+
+                for (let i = 0; i < this.smokeCount; i++) {
+                    this.smokeMaxLife[i] = 4.0 + Math.random() * 3.0;
+                    this.smokeLife[i] = Math.random() * this.smokeMaxLife[i]; // Phân bổ đều ngay từ đầu
+                    this.smokePos[i * 3] = 0;
+                    this.smokePos[i * 3 + 1] = -500;
+                    this.smokePos[i * 3 + 2] = 0;
+                    this.smokeVel.push(new THREE.Vector3(0, 0, 0));
+                }
+                this.smokeGeom.setAttribute('position', new THREE.BufferAttribute(this.smokePos, 3));
+
+                this.smokeMat = new THREE.PointsMaterial({
+                    map: smokeTex,
+                    size: 26.0,
+                    sizeAttenuation: true,
+                    transparent: true,
+                    opacity: 0.88,
+                    depthWrite: false,
+                    blending: THREE.NormalBlending
+                });
+                this.smokePoints = new THREE.Points(this.smokeGeom, this.smokeMat);
+                scene.add(this.smokePoints);
+
+                // 2. Hệ thống hạt lửa PBR cuộn xoáy
+                this.fireGeom = new THREE.BufferGeometry();
+                this.firePos = new Float32Array(this.fireCount * 3);
+                this.fireVel = [];
+                this.fireLife = new Float32Array(this.fireCount);
+                this.fireMaxLife = new Float32Array(this.fireCount);
+
+                for (let i = 0; i < this.fireCount; i++) {
+                    this.fireMaxLife[i] = 0.8 + Math.random() * 1.0;
+                    this.fireLife[i] = Math.random() * this.fireMaxLife[i];
+                    this.firePos[i * 3] = 0;
+                    this.firePos[i * 3 + 1] = -500;
+                    this.firePos[i * 3 + 2] = 0;
+                    this.fireVel.push(new THREE.Vector3(0, 0, 0));
+                }
+                this.fireGeom.setAttribute('position', new THREE.BufferAttribute(this.firePos, 3));
+
+                this.fireMat = new THREE.PointsMaterial({
+                    map: fireTex,
+                    size: 7.2,
+                    sizeAttenuation: true,
+                    transparent: true,
+                    opacity: 0.98,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+                this.firePoints = new THREE.Points(this.fireGeom, this.fireMat);
+                scene.add(this.firePoints);
+
+                // 3. Hệ thống hạt tàn tro than hồng
+                this.emberGeom = new THREE.BufferGeometry();
+                this.emberPos = new Float32Array(this.emberCount * 3);
+                this.emberVel = [];
+                this.emberLife = new Float32Array(this.emberCount);
+                this.emberMaxLife = new Float32Array(this.emberCount);
+
+                for (let i = 0; i < this.emberCount; i++) {
+                    this.emberMaxLife[i] = 2.5 + Math.random() * 2.5;
+                    this.emberLife[i] = Math.random() * this.emberMaxLife[i];
+                    this.emberPos[i * 3] = 0;
+                    this.emberPos[i * 3 + 1] = -500;
+                    this.emberPos[i * 3 + 2] = 0;
+                    this.emberVel.push(new THREE.Vector3(0, 0, 0));
+                }
+                this.emberGeom.setAttribute('position', new THREE.BufferAttribute(this.emberPos, 3));
+
+                this.emberMat = new THREE.PointsMaterial({
+                    map: emberTex,
+                    size: 3.5,
+                    sizeAttenuation: true,
+                    transparent: true,
+                    opacity: 0.95,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+                this.emberPoints = new THREE.Points(this.emberGeom, this.emberMat);
+                scene.add(this.emberPoints);
+
+                // 4. Ánh sáng lửa động (Dynamic Firelight)
+                this.fireLight = new THREE.PointLight(0xff5500, 0.0, 75, 1.2);
+                scene.add(this.fireLight);
+
+                this.waterFireLight = new THREE.PointLight(0xff2200, 0.0, 45, 1.5);
+                scene.add(this.waterFireLight);
+            }
+
+            resetParticle(i, type, basePos) {
+                // Tâm đám cháy lấy từ Soái hạm hoặc 2 tàu bên cạnh
+                const shipSelect = (i % 5 === 0) ? -28 : ((i % 7 === 0) ? +28 : 0);
+                const ox = basePos.x + shipSelect + (Math.random() - 0.5) * 5.5;
+                const oz = basePos.z + (Math.random() - 0.5) * 6.5;
+
+                if (type === 'fire') {
+                    const oy = basePos.y + 0.8 + Math.random() * 7.5; // Liếm từ mớn nước lên đỉnh cột buồm
+                    this.firePos[i * 3] = ox;
+                    this.firePos[i * 3 + 1] = oy;
+                    this.firePos[i * 3 + 2] = oz;
+                    this.fireVel[i].set(
+                        (Math.random() - 0.5) * 2.0 + 1.2, // Gió Đông Bắc dạt sang +X
+                        5.5 + Math.random() * 5.0,         // Bốc cao
+                        (Math.random() - 0.5) * 2.0 - 1.8  // Gió dạt sang -Z
+                    );
+                    this.fireLife[i] = 0;
+                } else if (type === 'smoke') {
+                    const oy = basePos.y + 3.5 + Math.random() * 8.0;
+                    this.smokePos[i * 3] = ox + (Math.random() - 0.5) * 3.0;
+                    this.smokePos[i * 3 + 1] = oy;
+                    this.smokePos[i * 3 + 2] = oz + (Math.random() - 0.5) * 3.0;
+                    this.smokeVel[i].set(
+                        3.5 + Math.random() * 3.0,         // Dạt mạnh theo gió mùa Đông Bắc
+                        6.5 + Math.random() * 5.5,         // Bốc cao ngút trời lên tới 45m
+                        -5.5 - Math.random() * 3.5
+                    );
+                    this.smokeLife[i] = 0;
+                } else if (type === 'ember') {
+                    const oy = basePos.y + 2.0 + Math.random() * 10.0;
+                    this.emberPos[i * 3] = ox;
+                    this.emberPos[i * 3 + 1] = oy;
+                    this.emberPos[i * 3 + 2] = oz;
+                    this.emberVel[i].set(
+                        (Math.random() - 0.5) * 5.0 + 3.8,
+                        4.0 + Math.random() * 6.0,
+                        (Math.random() - 0.5) * 5.0 - 5.0
+                    );
+                    this.emberLife[i] = 0;
+                }
+            }
+
+            update(dt, progress, flagshipShip, time) {
+                if (progress < 0.45 || !flagshipShip) {
+                    this.smokePoints.visible = false;
+                    this.firePoints.visible = false;
+                    this.emberPoints.visible = false;
+                    this.fireLight.intensity = 0.0;
+                    this.waterFireLight.intensity = 0.0;
+                    return;
+                }
+
+                this.smokePoints.visible = true;
+                this.firePoints.visible = true;
+                this.emberPoints.visible = true;
+
+                const fireIntensity = Math.min(1.0, (progress - 0.45) / 0.12);
+                const shipPos = flagshipShip.position;
+
+                // Ánh sáng lửa bập bùng chiếu rọi chiến trường
+                const flicker = Math.sin(time * 26.0) * 1.2 + Math.cos(time * 41.0) * 0.8;
+                this.fireLight.position.set(shipPos.x, shipPos.y + 6.5, shipPos.z);
+                this.fireLight.intensity = (5.8 + flicker) * fireIntensity;
+
+                this.waterFireLight.position.set(shipPos.x - 3.5, shipPos.y + 0.5, shipPos.z + 2.0);
+                this.waterFireLight.intensity = (3.8 + flicker * 0.8) * fireIntensity;
+
+                // 1. Cập nhật hạt Lửa
+                const activeFire = Math.floor(this.fireCount * fireIntensity);
+                for (let i = 0; i < this.fireCount; i++) {
+                    if (i > activeFire) {
+                        this.firePos[i * 3 + 1] = -500;
+                        continue;
+                    }
+                    this.fireLife[i] += dt;
+                    if (this.fireLife[i] >= this.fireMaxLife[i] || this.firePos[i * 3 + 1] < -100) {
+                        this.resetParticle(i, 'fire', shipPos);
+                    } else {
+                        this.firePos[i * 3] += this.fireVel[i].x * dt;
+                        this.firePos[i * 3 + 1] += this.fireVel[i].y * dt;
+                        this.firePos[i * 3 + 2] += this.fireVel[i].z * dt;
+                        this.firePos[i * 3] += Math.sin(time * 20.0 + i) * 0.08;
+                    }
+                }
+                this.fireGeom.attributes.position.needsUpdate = true;
+                this.fireMat.opacity = 0.95 * fireIntensity;
+
+                // 2. Cập nhật hạt Khói đen muội than
+                const activeSmoke = Math.floor(this.smokeCount * fireIntensity);
+                for (let i = 0; i < this.smokeCount; i++) {
+                    if (i > activeSmoke) {
+                        this.smokePos[i * 3 + 1] = -500;
+                        continue;
+                    }
+                    this.smokeLife[i] += dt;
+                    if (this.smokeLife[i] >= this.smokeMaxLife[i] || this.smokePos[i * 3 + 1] < -100) {
+                        this.resetParticle(i, 'smoke', shipPos);
+                    } else {
+                        this.smokePos[i * 3] += this.smokeVel[i].x * dt;
+                        this.smokePos[i * 3 + 1] += this.smokeVel[i].y * dt;
+                        this.smokePos[i * 3 + 2] += this.smokeVel[i].z * dt;
+                        this.smokePos[i * 3] += Math.sin(time * 6.0 + i) * 0.05;
+                    }
+                }
+                this.smokeGeom.attributes.position.needsUpdate = true;
+                this.smokeMat.opacity = 0.86 * fireIntensity;
+
+                // 3. Cập nhật hạt tàn tro than hồng
+                const activeEmber = Math.floor(this.emberCount * fireIntensity);
+                for (let i = 0; i < this.emberCount; i++) {
+                    if (i > activeEmber) {
+                        this.emberPos[i * 3 + 1] = -500;
+                        continue;
+                    }
+                    this.emberLife[i] += dt;
+                    if (this.emberLife[i] >= this.emberMaxLife[i] || this.emberPos[i * 3 + 1] < -100) {
+                        this.resetParticle(i, 'ember', shipPos);
+                    } else {
+                        this.emberPos[i * 3] += this.emberVel[i].x * dt;
+                        this.emberPos[i * 3 + 1] += this.emberVel[i].y * dt;
+                        this.emberPos[i * 3 + 2] += this.emberVel[i].z * dt;
+                        this.emberPos[i * 3] += Math.sin(time * 10.0 + i) * 0.12;
+                    }
+                }
+                this.emberGeom.attributes.position.needsUpdate = true;
+            }
+        }
+
+        const pyroEngine = new Web3DPyroEngine(scene);
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            currentWaterLevel += (targetWaterLevel - currentWaterLevel) * 0.04;
+            waterMesh.position.y = currentWaterLevel;
+
+            controls.update();
+
+            // Tiến trình tự động chạy
+            if (isSimPlaying) {
+                simProgress += dt * 0.018;
+                if (simProgress > 1.0) simProgress = 0.0;
+                timelineSlider.value = simProgress;
+                txtSliderVal.innerText = Math.round(simProgress * 100) + '%';
+                if (simProgress < 0.25) setBattlePhase(1, false);
+                else if (simProgress < 0.50) setBattlePhase(2, false);
+                else if (simProgress < 0.78) setBattlePhase(3, false);
+                else setBattlePhase(4, false);
+            }
+
+            const waveOffset = Math.sin(time * 2.0) * 0.04;
+
+            // Chuyển động Thuyền Đại Việt Master
+            daiVietFleet.forEach((boat, idx) => {
+                const rowers = boat.userData.rowers || [];
+                const oars = boat.userData.oars || [];
+
+                let bX = boat.userData.baseX;
+                let bZ = boat.userData.baseZ;
+                let bRotY = 0;
+
+                if (simProgress < 0.25) {
+                    const p1 = simProgress / 0.25;
+                    bZ += p1 * 12.0;
+                    bRotY = 0;
+                } else if (simProgress < 0.50) {
+                    const p2 = (simProgress - 0.25) / 0.25;
+                    const turnSign = bX <= 0 ? 1 : -1;
+                    bRotY = turnSign * p2 * Math.PI;
+                    bZ += 12.0 - p2 * 35.0;
+                    bX += turnSign * Math.sin(p2 * Math.PI) * 5.0;
+                } else {
+                    const p3 = (simProgress - 0.5) / 0.5;
+                    bZ -= 23.0 + p3 * 15.0;
+                    bRotY = Math.PI;
+                }
+
+                boat.position.set(bX, currentWaterLevel + waveOffset * 0.5, bZ);
+                boat.rotation.set(Math.sin(time * 3 + idx) * 0.025, bRotY, Math.sin(time * 2 + idx) * 0.015);
+
+                const stroke = Math.sin(time * 6.5 + idx);
+                rowers.forEach(r => { r.rotation.x = stroke * 0.22; });
+                oars.forEach((o, oIdx) => {
+                    const sideMul = (oIdx % 2 === 0) ? -1 : 1;
+                    o.rotation.z = sideMul * (0.65 + stroke * 0.15);
+                    o.rotation.y = stroke * 0.2;
+                });
+            });
+
+            // Chuyển động Lâu Thuyền Nam Hán Master
+            namHanFleet.forEach((ship, idx) => {
+                let sZ = ship.userData.baseZ;
+                let sX = ship.userData.baseX;
+                let sRotZ = 0;
+                let sRotX = 0;
+
+                if (simProgress < 0.25) {
+                    const p1 = simProgress / 0.25;
+                    sZ -= p1 * 15.0;
+                } else if (simProgress < 0.50) {
+                    const p2 = (simProgress - 0.25) / 0.25;
+                    sZ -= 15.0 + p2 * 45.0;
+                } else {
+                    sZ -= 60.0;
+                    if (currentWaterLevel < 0.1) {
+                        const tiltAmt = Math.min(0.45, (0.1 - currentWaterLevel) * 0.35);
+                        sRotZ = (idx % 2 === 0 ? 1 : -1) * tiltAmt;
+                        sRotX = (idx % 3 === 0 ? 1 : -1) * (tiltAmt * 0.6);
+                    }
+                }
+
+                const shipMinY = 0.2;
+                const shipY = Math.max(shipMinY, currentWaterLevel);
+
+                ship.position.set(sX, shipY + waveOffset * 0.3, sZ);
+                ship.rotation.set(sRotX, 0, sRotZ);
+
+                const oars = ship.userData.oars || [];
+                const stroke = Math.sin(time * 3.5 + idx);
+                oars.forEach((o, oIdx) => {
+                    const sideMul = (oIdx % 2 === 0) ? -1 : 1;
+                    o.rotation.z = sideMul * (0.75 + stroke * 0.1);
+                });
+            });
+
+            
+            // Cập nhật Hệ thống Khói Lửa WebGL Siêu Thực
+            const flagship = namHanFleet.find(s => s.userData.isFlagship) || namHanFleet[3];
+            pyroEngine.update(dt, simProgress, flagship, time);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        console.log("=== [VIETNAM-SIM 3D WEB] Khởi chạy mô phỏng Đại Chiến Bạch Đằng 938 thành công! ===");
+    </script>
+</body>
+</html>

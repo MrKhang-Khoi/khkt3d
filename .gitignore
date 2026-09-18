@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Python cache & virtualenvs
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Heavy character base mesh raw bundles
+assets/characters/
+*.zip
+*.tar.gz
+.codegraph/
+
+# Temporary test screenshots in root
+*.png
+*.jpg
+!dark_wood_diff_1k.jpg
+!dark_wood_nor_1k.jpg
+!dark_wood_rough_1k.jpg
+
+# Blender backup files
+*.blend1
+*.blend2
+
+# Temporary audit logs
+*.log
