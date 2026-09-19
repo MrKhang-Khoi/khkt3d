@@ -847,14 +847,19 @@
         window.stakesGroup = stakesGroup;
 
         const dvFleetData = [
-            { name: 'DV_01_TienPhong', x: -9.0, z: -32.0, isLead: true },
-            { name: 'DV_02_TienPhong', x: +9.0, z: -32.0, isLead: true },
-            { name: 'DV_Ta_01', x: -28.0, z: -48.0, isLead: false },
-            { name: 'DV_Ta_02', x: -48.0, z: -64.0, isLead: false },
-            { name: 'DV_Ta_03', x: -68.0, z: -80.0, isLead: false },
-            { name: 'DV_Huu_01', x: +28.0, z: -48.0, isLead: false },
-            { name: 'DV_Huu_02', x: +48.0, z: -64.0, isLead: false },
-            { name: 'DV_Huu_03', x: +68.0, z: -80.0, isLead: false }
+            // Mũi nhọn Khiêu chiến Tiên phong (2 thuyền soái tiêu binh trung tâm lòng sông)
+            { name: 'DV_01_TienPhong', x: -7.5, z: -28.0, isLead: true },
+            { name: 'DV_02_TienPhong', x: +7.5, z: -28.0, isLead: true },
+
+            // Cánh Tả (3 thuyền hộ vệ mạn trái - xếp thoai thoải lùi dần theo thế trận Mũi Nhạn)
+            { name: 'DV_Ta_01', x: -24.0, z: -40.0, isLead: false },
+            { name: 'DV_Ta_02', x: -42.0, z: -52.0, isLead: false },
+            { name: 'DV_Ta_03', x: -60.0, z: -64.0, isLead: false },
+
+            // Cánh Hữu (3 thuyền hộ vệ mạn phải - đối xứng hoàn hảo sang mạn phải)
+            { name: 'DV_Huu_01', x: +24.0, z: -40.0, isLead: false },
+            { name: 'DV_Huu_02', x: +42.0, z: -52.0, isLead: false },
+            { name: 'DV_Huu_03', x: +60.0, z: -64.0, isLead: false }
         ];
 
         const nhFleetData = [
@@ -1798,22 +1803,32 @@
 
                 let bX = boat.userData.baseX;
                 let bZ = boat.userData.baseZ;
-                let bRotY = 0;
+                let bRotY = -Math.PI / 2; // Góc chuẩn: Mũi chim lạc chĩa thẳng vào hạm đội giặc (+Z)
+                const turnSign = bX <= 0 ? -1 : 1; // Thuyền Tả rẽ trái (-1) ra bờ Tây, Thuyền Hữu rẽ phải (+1) ra bờ Đông
 
                 if (simProgress < 0.25) {
+                    // Pha 1: Triều dâng - Đội hình Mũi Nhạn (Chữ V) tiến thẳng rẽ sóng khiêu chiến (+Z)
                     const p1 = simProgress / 0.25;
-                    bZ += p1 * 12.0;
-                    bRotY = 0;
+                    bZ += p1 * 14.0;
+                    bRotY = -Math.PI / 2;
                 } else if (simProgress < 0.50) {
+                    // Pha 2: Giả vờ thua - Lượn vòng cung tản ra 2 bên mạn sông, nhử giặc vào luồng cọc ngầm
                     const p2 = (simProgress - 0.25) / 0.25;
-                    const turnSign = bX <= 0 ? 1 : -1;
-                    bRotY = turnSign * p2 * Math.PI;
-                    bZ += 12.0 - p2 * 35.0;
-                    bX += turnSign * Math.sin(p2 * Math.PI) * 5.0;
+                    bRotY = -Math.PI / 2 + turnSign * p2 * Math.PI;
+                    bZ += 14.0 - p2 * 38.0;
+                    bX += turnSign * Math.sin(p2 * Math.PI) * 7.5; // Dạt rộng ra 2 bên cánh mạn sông
+                } else if (simProgress < 0.78) {
+                    // Pha 3: Địch mắc cọc - Quay mũi thuyền trở lại (+Z) khóa chặt các ngả cửa sông
+                    const p3 = (simProgress - 0.50) / 0.28;
+                    const turnP = Math.min(1.0, p3 / 0.30);
+                    bRotY = Math.PI / 2 + turnSign * turnP * Math.PI;
+                    bZ -= 24.0 - p3 * 12.0;
+                    bX += turnSign * (1.0 - turnP) * 3.0;
                 } else {
-                    const p3 = (simProgress - 0.5) / 0.5;
-                    bZ -= 23.0 + p3 * 15.0;
-                    bRotY = Math.PI;
+                    // Pha 4: Tổng phản công - Thần tốc lao thẳng vào hạm đội giặc đang bốc cháy
+                    const p4 = (simProgress - 0.78) / 0.22;
+                    bZ -= 12.0 + p4 * 24.0;
+                    bRotY = -Math.PI / 2;
                 }
 
                 boat.position.set(bX, currentWaterLevel + waveOffset * 0.5, bZ);
@@ -1821,12 +1836,13 @@
 
                 const stroke = Math.sin(time * 5.5 + idx * 0.4);
                 rowers.forEach(r => {
-                    // 1. Gập người về trước đẩy chèo, ngửa người ra sau kéo lực nước
-                    r.rotation.x = stroke * 0.24;
-                    // 2. Nhấc mái chèo lên khỏi mặt nước và cắm sâu xuống dòng nước
                     const isStbd = r.name.includes('Stbd');
-                    r.rotation.y = (isStbd ? -1 : 1) * (stroke * 0.10);
-                    r.rotation.z = (isStbd ? -1 : 1) * (stroke * 0.08);
+                    // 1. Gập người về trước ngửa người ra sau theo nhịp chèo (trục Z local)
+                    r.rotation.z = (isStbd ? 1 : -1) * (stroke * 0.20);
+                    // 2. Nhấc mái chèo lên khỏi mặt nước và cắm sâu khua nước (trục X local)
+                    r.rotation.x = stroke * 0.12;
+                    // 3. Xoay nhẹ góc mở cán chèo (trục Y local)
+                    r.rotation.y = (isStbd ? -1 : 1) * (stroke * 0.08);
                 });
             });
 
