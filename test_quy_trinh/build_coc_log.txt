@@ -1,0 +1,5 @@
+=== TẠO SCENE RIÊNG VÀ RENDER 4 GÓC NHÌN CỌC BẠCH ĐẰNG 938 ===
+Render xong anh_coc_goc_nhin_sideview.png -> C:/Users/HPZBook/Desktop/TEST_BLENDER/test_quy_trinh\anh_coc_goc_nhin_sideview.png
+Render xong anh_coc_cancanh_dau_sat.png -> C:/Users/HPZBook/Desktop/TEST_BLENDER/test_quy_trinh\anh_coc_cancanh_dau_sat.png
+Render xong anh_coc_cancanh_goc_cam_bun.png -> C:/Users/HPZBook/Desktop/TEST_BLENDER/test_quy_trinh\anh_coc_cancanh_goc_cam_bun.png
+Render xong anh_bai_coc_toan_canh_ngam_nuoc.png -> C:/Users/HPZBook/Desktop/TEST_BLENDER/test_quy_trinh\anh_bai_coc_toan_canh_ngam_nuoc.png
