@@ -29,9 +29,9 @@ def run_code_in_blender(code_str):
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         with open(sys.argv[1], 'r', encoding='utf-8') as f:
-            code = f.read()
+            code = f.read().lstrip('\ufeff')
     else:
-        code = sys.stdin.read()
+        code = sys.stdin.read().lstrip('\ufeff')
     res = run_code_in_blender(code)
     print("STATUS:", res.get("status"))
     if res.get("status") == "success":
